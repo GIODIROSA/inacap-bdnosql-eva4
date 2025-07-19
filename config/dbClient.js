@@ -5,7 +5,7 @@ const user = process.env.USER_DATABASE;
 const password = process.env.PASSWORD_DATABASE;
 const serverDB = process.env.SERVER_DB;
 
-console.log("Cargando variables de entorno...", user, password, serverDB);
+//console.log("Cargando variables de entorno...", user, password, serverDB);
 
 class dbClient {
   constructor() {
