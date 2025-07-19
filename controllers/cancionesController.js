@@ -15,7 +15,9 @@ class cancionesController {
 
   async update(req, res) {
     try {
-      res.status(200).json({ status: "ok update" });
+      const { id } = req.params;
+      const data = await cancionesModelo.update(id, req.body);
+      res.status(200).json(data);
     } catch (error) {
       console.error("Error al actualizar la canción:", error.message);
       res.status(500).send("Error interno del servidor");
@@ -24,7 +26,9 @@ class cancionesController {
 
   async delete(req, res) {
     try {
-      res.status(200).json({ status: "ok delete" });
+      const { id } = req.params;
+      const data = await cancionesModelo.delete(id);
+      res.status(206).json(data);
     } catch (error) {
       console.error("Error al eliminar la canción:", error.message);
       res.status(500).send("Error interno del servidor");
@@ -33,7 +37,8 @@ class cancionesController {
 
   async getAll(req, res) {
     try {
-      res.status(200).json({ status: "ok getAll" });
+      const data = await cancionesModelo.getAll();
+      res.status(200).json(data);
     } catch (error) {
       console.error("Error al obtener las canciones:", error.message);
       res.status(500).send("Error interno del servidor");
@@ -42,7 +47,9 @@ class cancionesController {
 
   async getOne(req, res) {
     try {
-      res.status(200).send(`Canción con ID: ${req.params.id}`);
+      const { id } = req.params;
+      const data = await cancionesModelo.getOne(id);
+      res.status(200).json(data);
     } catch (error) {
       console.error("Error al obtener la canción:", error.message);
       res.status(500).send("Error interno del servidor");
