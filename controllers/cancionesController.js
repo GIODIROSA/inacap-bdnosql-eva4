@@ -1,3 +1,5 @@
+import { ObjectId } from "mongodb";
+import dbClient from "../config/dbClient.js";
 import cancionesModelo from "../models/canciones.js";
 
 class cancionesController {
@@ -53,6 +55,38 @@ class cancionesController {
     } catch (error) {
       console.error("Error al obtener la canción:", error.message);
       res.status(500).send("Error interno del servidor");
+    }
+  }
+
+  async getCancionesPorAlbum(req, res) {
+    try {
+      const { albumId } = req.params;
+      if (!ObjectId.isValid(albumId)) {
+        return res.status(400).json({ message: "ID de álbum inválido" });
+      }
+      const colGeneros = dbClient.db.collection("canciones");
+      const genero = await colGeneros.findOne({ "albumes._id": new ObjectId(albumId) });
+      if (!genero) {
+        return res.status(404).json({ message: "Álbum no encontrado" });
+      }
+      const album = genero.albumes.find(a => a._id.toString() === albumId.toString());
+      if (!album) {
+        return res.status(404).json({ message: "Álbum no encontrado" });
+      }
+      res.status(200).json(album.canciones || []);
+    } catch (error) {
+      console.error("Error al obtener canciones por álbum:", error);
+      res.status(500).json({ message: "Error al obtener canciones por álbum", error: error.message });
+    }
+  }
+
+  async getEstructuraCompleta(req, res) {
+    try {
+      const colGeneros = dbClient.db.collection("canciones");
+      const data = await colGeneros.find({}).toArray();
+      res.status(200).json(data);
+    } catch (error) {
+      res.status(500).json({ message: "Error al obtener la estructura", error: error.message });
     }
   }
 }

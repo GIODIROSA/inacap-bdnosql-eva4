@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import routeCanciones from "./routes/canciones.js";
+import routeGeneros from "./routes/generos.js";
+import routeAlbumes from "./routes/albumes.js";
 import bodyParser from "body-parser";
 
 const app = express();
@@ -8,6 +10,8 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use("/canciones", routeCanciones);
+app.use("/generos", routeGeneros);
+app.use("/albumes", routeAlbumes);
 
 try {
   const PORT = process.env.PORT || 3000;
