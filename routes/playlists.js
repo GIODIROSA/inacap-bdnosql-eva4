@@ -1,15 +1,15 @@
-import express from "express";
-const route = express.Router();
+import { Router } from "express";
 import playlistsController from "../controllers/playlistsController.js";
 
-route.post("/", playlistsController.create);
-route.get("/", playlistsController.getAll);
-route.get("/:id", playlistsController.getOne);
-route.put("/:id", playlistsController.update);
-route.delete("/:id", playlistsController.delete);
+const router = Router();
 
-// Agregar y quitar canciones de la playlist
-route.post("/:id/canciones", playlistsController.addCancion);
-route.delete("/:id/canciones", playlistsController.removeCancion);
+router.get("/", playlistsController.getAll);
+router.get("/:id", playlistsController.getOne);
+router.post("/", playlistsController.create);
+router.post("/:id/canciones", playlistsController.addSong);
+router.put("/:id/canciones/:index", playlistsController.updateSong);
+router.delete("/:id/canciones/:index", playlistsController.deleteSong);
+router.put("/:id", playlistsController.renamePlaylist);
+router.delete("/:id", playlistsController.deletePlaylist);
 
-export default route;
+export default router;

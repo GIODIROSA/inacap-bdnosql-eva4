@@ -1,67 +1,98 @@
 import playlistsModelo from "../models/playlists.js";
 
 class playlistsController {
-  async create(req, res) {
-    try {
-      const data = await playlistsModelo.create(req.body);
-      res.status(201).json(data);
-    } catch (error) {
-      res.status(500).send("Error interno del servidor");
-    }
-  }
   async getAll(req, res) {
     try {
       const data = await playlistsModelo.getAll();
-      res.status(200).json(data);
+      res.json(data);
     } catch (error) {
-      res.status(500).send("Error interno del servidor");
+      res.status(500).send("Error al obtener playlists");
     }
   }
+
   async getOne(req, res) {
     try {
       const { id } = req.params;
       const data = await playlistsModelo.getOne(id);
-      res.status(200).json(data);
+      if (!data) return res.status(404).send("Playlist no encontrada");
+      res.json(data);
     } catch (error) {
-      res.status(500).send("Error interno del servidor");
+      res.status(500).send("Error al obtener la playlist");
     }
   }
-  async update(req, res) {
+
+  async create(req, res) {
     try {
-      const { id } = req.params;
-      const data = await playlistsModelo.update(id, req.body);
-      res.status(200).json(data);
+      const playlist = req.body;
+      if (!playlist.nombre) return res.status(400).send("Falta el nombre de la playlist");
+      await playlistsModelo.create({ ...playlist, canciones: playlist.canciones || [] });
+      res.status(201).send("Playlist creada");
     } catch (error) {
-      res.status(500).send("Error interno del servidor");
+      res.status(500).send("Error al crear la playlist");
     }
   }
-  async delete(req, res) {
+
+  async addSong(req, res) {
     try {
       const { id } = req.params;
-      const data = await playlistsModelo.delete(id);
-      res.status(200).json(data);
+      const cancion = req.body;
+      if (!cancion.titulo) return res.status(400).send("Falta el título de la canción");
+      const result = await playlistsModelo.addSongToPlaylist(id, cancion);
+      if (result.modifiedCount === 0) return res.status(404).send("Playlist no encontrada");
+      res.status(201).send("Canción agregada");
     } catch (error) {
-      res.status(500).send("Error interno del servidor");
+      res.status(500).send("Error al agregar la canción");
     }
   }
-  async addCancion(req, res) {
+
+  async updateSong(req, res) {
     try {
-      const { id } = req.params;
-      const { cancionId } = req.body;
-      const data = await playlistsModelo.addCancion(id, cancionId);
-      res.status(200).json(data);
+      const { id, index } = req.params;
+      const nuevaCancion = req.body;
+      const playlist = await playlistsModelo.getOne(id);
+      if (!playlist) return res.status(404).send("Playlist no encontrada");
+      if (!playlist.canciones || !playlist.canciones[index]) return res.status(404).send("Canción no encontrada en la playlist");
+      await playlistsModelo.updateSongInPlaylist(id, index, nuevaCancion);
+      res.status(200).send("Canción actualizada");
     } catch (error) {
-      res.status(500).send("Error interno del servidor");
+      res.status(500).send("Error al actualizar la canción");
     }
   }
-  async removeCancion(req, res) {
+
+  async deleteSong(req, res) {
+    try {
+      const { id, index } = req.params;
+      const playlist = await playlistsModelo.getOne(id);
+      if (!playlist) return res.status(404).send("Playlist no encontrada");
+      if (!playlist.canciones || !playlist.canciones[index]) return res.status(404).send("Canción no encontrada en la playlist");
+      await playlistsModelo.deleteSongFromPlaylist(id, index);
+      res.status(200).send("Canción eliminada");
+    } catch (error) {
+      res.status(500).send("Error al eliminar la canción");
+    }
+  }
+
+  async renamePlaylist(req, res) {
     try {
       const { id } = req.params;
-      const { cancionId } = req.body;
-      const data = await playlistsModelo.removeCancion(id, cancionId);
-      res.status(200).json(data);
+      const { nombre } = req.body;
+      if (!nombre) return res.status(400).send("Falta el nombre");
+      const result = await playlistsModelo.renamePlaylist(id, nombre);
+      if (result.modifiedCount === 0) return res.status(404).send("Playlist no encontrada");
+      res.status(200).send("Playlist renombrada");
     } catch (error) {
-      res.status(500).send("Error interno del servidor");
+      res.status(500).send("Error al renombrar la playlist");
+    }
+  }
+
+  async deletePlaylist(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await playlistsModelo.deletePlaylist(id);
+      if (result.deletedCount === 0) return res.status(404).send("Playlist no encontrada");
+      res.status(200).send("Playlist eliminada");
+    } catch (error) {
+      res.status(500).send("Error al eliminar la playlist");
     }
   }
 }

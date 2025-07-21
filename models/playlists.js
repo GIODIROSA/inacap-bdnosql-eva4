@@ -1,40 +1,65 @@
-import { ObjectId } from "mongodb";
 import dbClient from "../config/dbClient.js";
+import { ObjectId } from "mongodb";
 
 class playlistsModelo {
-  async create(playlist) {
-    const colPlaylists = dbClient.db.collection("playlists");
-    return await colPlaylists.insertOne({ ...playlist, canciones: [] });
-  }
+  // Obtener todas las playlists
   async getAll() {
-    const colPlaylists = dbClient.db.collection("playlists");
-    return await colPlaylists.find({}).toArray();
+    const col = dbClient.db.collection("playlists");
+    return await col.find({}).toArray();
   }
+  // Obtener una playlist por ID
   async getOne(id) {
-    const colPlaylists = dbClient.db.collection("playlists");
-    return await colPlaylists.findOne({ _id: new ObjectId(id) });
+    const col = dbClient.db.collection("playlists");
+    return await col.findOne({ _id: new ObjectId(id) });
   }
-  async update(id, playlist) {
-    const colPlaylists = dbClient.db.collection("playlists");
-    return await colPlaylists.updateOne({ _id: new ObjectId(id) }, { $set: playlist });
+  // Obtener una playlist por nombre
+  async create(playlist) {
+    const col = dbClient.db.collection("playlists");
+    return await col.insertOne(playlist);
   }
-  async delete(id) {
-    const colPlaylists = dbClient.db.collection("playlists");
-    return await colPlaylists.deleteOne({ _id: new ObjectId(id) });
-  }
-  async addCancion(id, cancionId) {
-    const colPlaylists = dbClient.db.collection("playlists");
-    return await colPlaylists.updateOne(
-      { _id: new ObjectId(id) },
-      { $addToSet: { canciones: cancionId } }
+  
+  async addSongToPlaylist(playlistId, cancion) {
+    const col = dbClient.db.collection("playlists");
+    return await col.updateOne(
+      { _id: new ObjectId(playlistId) },
+      { $push: { canciones: cancion } }
     );
   }
-  async removeCancion(id, cancionId) {
-    const colPlaylists = dbClient.db.collection("playlists");
-    return await colPlaylists.updateOne(
-      { _id: new ObjectId(id) },
-      { $pull: { canciones: cancionId } }
+
+  async updateSongInPlaylist(playlistId, songIndex, nuevaCancion) {
+    const col = dbClient.db.collection("playlists");
+    const updateField = {};
+    updateField[`canciones.${songIndex}`] = nuevaCancion;
+    return await col.updateOne(
+      { _id: new ObjectId(playlistId) },
+      { $set: updateField }
     );
+  }
+
+  async deleteSongFromPlaylist(playlistId, songIndex) {
+    const col = dbClient.db.collection("playlists");
+    // Elimina el elemento y luego limpia los nulls
+    await col.updateOne(
+      { _id: new ObjectId(playlistId) },
+      { $unset: { [`canciones.${songIndex}`]: 1 } }
+    );
+    return await col.updateOne(
+      { _id: new ObjectId(playlistId) },
+      { $pull: { canciones: null } }
+    );
+  }
+
+  async renamePlaylist(id, nombre) {
+    const col = dbClient.db.collection("playlists");
+    return await col.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { nombre } }
+    );
+  }
+
+  async deletePlaylist(id) {
+    const col = dbClient.db.collection("playlists");
+    return await col.deleteOne({ _id: new ObjectId(id) });
   }
 }
 
