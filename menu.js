@@ -1,7 +1,9 @@
+import "dotenv/config";
 import inquirer from "inquirer";
 import axios from "axios";
 
-const API_URL = "http://localhost:8080";
+const url = process.env.URL_INICIAL;
+const API_URL = url;
 
 async function mainMenu() {
   const { opcion } = await inquirer.prompt([
@@ -9,11 +11,8 @@ async function mainMenu() {
       type: "list",
       name: "opcion",
       message: "¿Qué deseas hacer?",
-      choices: [
-        "Explorar géneros y álbumes",
-        "Salir"
-      ]
-    }
+      choices: ["Explorar géneros y álbumes", "Salir"],
+    },
   ]);
 
   switch (opcion) {
@@ -39,11 +38,11 @@ async function explorarGeneros() {
         type: "list",
         name: "generoId",
         message: "Selecciona un género:",
-        choices: res.data.map(g => ({
+        choices: res.data.map((g) => ({
           name: g.genero,
-          value: g._id
-        }))
-      }
+          value: g._id,
+        })),
+      },
     ]);
     await explorarAlbumes(generoId);
   } catch (error) {
@@ -63,11 +62,11 @@ async function explorarAlbumes(generoId) {
         type: "list",
         name: "albumId",
         message: "Selecciona un álbum:",
-        choices: res.data.map(a => ({
+        choices: res.data.map((a) => ({
           name: a.titulo,
-          value: a._id
-        }))
-      }
+          value: a._id,
+        })),
+      },
     ]);
     await mostrarCanciones(albumId);
   } catch (error) {
@@ -90,8 +89,8 @@ async function mostrarCanciones(albumId) {
       {
         type: "input",
         name: "continuar",
-        message: "Presiona ENTER para volver al menú principal"
-      }
+        message: "Presiona ENTER para volver al menú principal",
+      },
     ]);
   } catch (error) {
     console.error("Error al obtener canciones:", error.message);
@@ -112,9 +111,9 @@ async function gestionarPlaylists() {
         "Agregar canción a playlist",
         "Renombrar playlist",
         "Eliminar playlist",
-        "Volver"
-      ]
-    }
+        "Volver",
+      ],
+    },
   ]);
 
   switch (accion) {
@@ -146,15 +145,15 @@ async function verPlaylists() {
       console.log("No hay playlists disponibles.");
       return;
     }
-    res.data.forEach(pl => {
+    res.data.forEach((pl) => {
       console.log(`- ${pl.nombre} (${pl.canciones.length} canciones)`);
     });
     await inquirer.prompt([
       {
         type: "input",
         name: "continuar",
-        message: "Presiona ENTER para continuar"
-      }
+        message: "Presiona ENTER para continuar",
+      },
     ]);
   } catch (error) {
     console.error("Error al obtener playlists:", error.message);
@@ -163,7 +162,7 @@ async function verPlaylists() {
 
 async function crearPlaylist() {
   const { nombre } = await inquirer.prompt([
-    { type: "input", name: "nombre", message: "Nombre de la playlist:" }
+    { type: "input", name: "nombre", message: "Nombre de la playlist:" },
   ]);
   try {
     await axios.post(`${API_URL}/playlists`, { nombre, canciones: [] });
@@ -185,15 +184,19 @@ async function agregarCancionAPlaylist() {
         type: "list",
         name: "playlistId",
         message: "Selecciona una playlist:",
-        choices: res.data.map(pl => ({ name: pl.nombre, value: pl._id }))
-      }
+        choices: res.data.map((pl) => ({ name: pl.nombre, value: pl._id })),
+      },
     ]);
     const { titulo, artista, album } = await inquirer.prompt([
       { type: "input", name: "titulo", message: "Título de la canción:" },
       { type: "input", name: "artista", message: "Artista:" },
-      { type: "input", name: "album", message: "Álbum:" }
+      { type: "input", name: "album", message: "Álbum:" },
     ]);
-    await axios.post(`${API_URL}/playlists/${playlistId}/canciones`, { titulo, artista, album });
+    await axios.post(`${API_URL}/playlists/${playlistId}/canciones`, {
+      titulo,
+      artista,
+      album,
+    });
     console.log("Canción agregada.");
   } catch (error) {
     console.error("Error al agregar canción:", error.message);
@@ -212,11 +215,15 @@ async function renombrarPlaylist() {
         type: "list",
         name: "playlistId",
         message: "Selecciona una playlist:",
-        choices: res.data.map(pl => ({ name: pl.nombre, value: pl._id }))
-      }
+        choices: res.data.map((pl) => ({ name: pl.nombre, value: pl._id })),
+      },
     ]);
     const { nombre } = await inquirer.prompt([
-      { type: "input", name: "nombre", message: "Nuevo nombre de la playlist:" }
+      {
+        type: "input",
+        name: "nombre",
+        message: "Nuevo nombre de la playlist:",
+      },
     ]);
     await axios.put(`${API_URL}/playlists/${playlistId}`, { nombre });
     console.log("Playlist renombrada.");
@@ -237,8 +244,8 @@ async function eliminarPlaylist() {
         type: "list",
         name: "playlistId",
         message: "Selecciona una playlist para eliminar:",
-        choices: res.data.map(pl => ({ name: pl.nombre, value: pl._id }))
-      }
+        choices: res.data.map((pl) => ({ name: pl.nombre, value: pl._id })),
+      },
     ]);
     await axios.delete(`${API_URL}/playlists/${playlistId}`);
     console.log("Playlist eliminada.");
