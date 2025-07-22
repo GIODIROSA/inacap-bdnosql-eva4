@@ -89,6 +89,45 @@ class cancionesController {
       res.status(500).json({ message: "Error al obtener la estructura", error: error.message });
     }
   }
+
+  // Métodos para géneros
+  async getAllGeneros(req, res) {
+    try {
+      const colGeneros = dbClient.db.collection("canciones");
+      const generos = await colGeneros.find({}, { 
+        projection: { 
+          _id: 1, 
+          genero: 1 
+        } 
+      }).toArray();
+      res.status(200).json(generos);
+    } catch (error) {
+      console.error("Error al obtener géneros:", error.message);
+      res.status(500).send("Error interno del servidor");
+    }
+  }
+
+  // Método para obtener álbumes por género
+  async getAlbumesPorGenero(req, res) {
+    try {
+      const { generoId } = req.params;
+      if (!ObjectId.isValid(generoId)) {
+        return res.status(400).json({ message: "ID de género inválido" });
+      }
+
+      const colGeneros = dbClient.db.collection("canciones");
+      const genero = await colGeneros.findOne({ _id: new ObjectId(generoId) });
+      
+      if (!genero) {
+        return res.status(404).json({ message: "Género no encontrado" });
+      }
+      
+      res.status(200).json(genero.albumes || []);
+    } catch (error) {
+      console.error("Error al obtener álbumes por género:", error.message);
+      res.status(500).json({ message: "Error al obtener álbumes por género", error: error.message });
+    }
+  }
 }
 
 export default new cancionesController();

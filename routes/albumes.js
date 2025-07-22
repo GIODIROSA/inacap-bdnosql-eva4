@@ -1,9 +1,8 @@
-// routes/generos.js
 import express from "express";
 const router = express.Router();
 import cancionesController from "../controllers/cancionesController.js"; // Usando el controlador de canciones
 
-// Rutas para la gestión de géneros
-router.get("/", cancionesController.getAllGeneros); // Obtiene todos los géneros
+// Ruta para obtener álbumes por género
+router.get("/genero/:generoId", cancionesController.getAlbumesPorGenero);
 
 export default router;
