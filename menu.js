@@ -8,6 +8,8 @@ const API_URL = url;
 async function mainMenu() {
   let salir = false;
   while (!salir) {
+    // Limpiar pantalla antes de mostrar el menú
+    console.clear();
     console.log("\n--- Menú Principal ---");
     const { opcion } = await inquirer.prompt([
       {
@@ -15,6 +17,8 @@ async function mainMenu() {
         name: "opcion",
         message: "¿Qué deseas hacer?",
         choices: ["Explorar música", "Gestionar playlists", "Salir"],
+        pageSize: 10,
+        loop: false
       },
     ]);
 
@@ -109,6 +113,7 @@ async function mostrarCanciones(albumId) {
 async function gestionarPlaylists() {
   let volver = false;
   while (!volver) {
+    console.clear();
     console.log("\n--- Gestión de Playlists ---");
     const { accion } = await inquirer.prompt([
       {
@@ -125,6 +130,8 @@ async function gestionarPlaylists() {
           "Eliminar una playlist",
           "Volver al menú principal",
         ],
+        pageSize: 10,
+        loop: false
       },
     ]);
 
@@ -205,19 +212,38 @@ async function agregarCancionAPlaylist() {
     );
     if (!playlistId) return; // El usuario canceló o no hay playlists
 
-    const { titulo, artista, album } = await inquirer.prompt([
-      { type: "input", name: "titulo", message: "Título de la canción:" },
-      { type: "input", name: "artista", message: "Artista:" },
-      { type: "input", name: "album", message: "Álbum:" },
+    // Ofrecer opciones para agregar la canción
+    const { metodo } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "metodo",
+        message: "¿Cómo quieres agregar la canción?",
+        choices: [
+          "📁 Navegar por géneros y álbumes",
+          "🔍 Buscar canción por título",
+          "✏️ Escribir información manualmente",
+        ],
+        pageSize: 5,
+        loop: false
+      },
     ]);
-    await axios.post(`${API_URL}/playlists/${playlistId}/canciones`, {
-      titulo,
-      artista,
-      album,
-    });
-    console.log("Canción agregada.");
+
+    let cancionData;
+    
+    if (metodo === "📁 Navegar por géneros y álbumes") {
+      cancionData = await seleccionarCancionPorNavegacion();
+    } else if (metodo === "🔍 Buscar canción por título") {
+      cancionData = await buscarCancionPorTitulo();
+    } else {
+      cancionData = await ingresarCancionManual();
+    }
+
+    if (cancionData) {
+      await axios.post(`${API_URL}/playlists/${playlistId}/canciones`, cancionData);
+      console.log("✅ Canción agregada exitosamente a la playlist.");
+    }
   } catch (error) {
-    console.error("Error al agregar canción:", error.message);
+    console.error("❌ Error al agregar canción:", error.message);
   }
 }
 
@@ -304,7 +330,7 @@ async function seleccionarPlaylist(message) {
   try {
     const res = await axios.get(`${API_URL}/playlists`);
     if (!res.data.length) {
-      console.log("No hay playlists disponibles.");
+      console.log("❌ No hay playlists disponibles.");
       return null;
     }
     const { playlistId } = await inquirer.prompt([
@@ -312,12 +338,205 @@ async function seleccionarPlaylist(message) {
         type: "list",
         name: "playlistId",
         message: message,
-        choices: res.data.map((pl) => ({ name: pl.nombre, value: pl._id })),
+        choices: res.data.map((pl) => ({ 
+          name: `🎵 ${pl.nombre} (${pl.canciones?.length || 0} canciones)`, 
+          value: pl._id 
+        })),
+        pageSize: 10,
+        loop: false
       },
     ]);
     return playlistId;
   } catch (error) {
     console.error("Error al obtener las playlists:", error.message);
+    return null;
+  }
+}
+
+// Función para navegar por géneros → álbumes → canciones
+async function seleccionarCancionPorNavegacion() {
+  try {
+    console.log("\n🎭 Seleccionando género...");
+    
+    // Primero seleccionar género
+    const res = await axios.get(`${API_URL}/generos`);
+    if (!Array.isArray(res.data) || !res.data.length) {
+      console.log("❌ No hay géneros disponibles.");
+      return null;
+    }
+
+    const { generoId } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "generoId",
+        message: "🎭 Selecciona un género:",
+        choices: res.data.map((g) => ({
+          name: `🎵 ${g.genero}`,
+          value: g._id,
+        })),
+        pageSize: 10,
+        loop: false
+      },
+    ]);
+
+    console.log("\n💿 Seleccionando álbum...");
+    
+    // Luego seleccionar álbum
+    const albumRes = await axios.get(`${API_URL}/albumes/genero/${generoId}`);
+    if (!albumRes.data.length) {
+      console.log("❌ No hay álbumes disponibles para este género.");
+      return null;
+    }
+
+    const { albumId } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "albumId",
+        message: "💿 Selecciona un álbum:",
+        choices: albumRes.data.map((a) => ({
+          name: `💿 ${a.titulo} (${a.canciones?.length || 0} canciones)`,
+          value: a._id,
+        })),
+        pageSize: 10,
+        loop: false
+      },
+    ]);
+
+    console.log("\n🎶 Seleccionando canción...");
+    
+    // Finalmente seleccionar canción
+    const cancionRes = await axios.get(`${API_URL}/canciones/album/${albumId}`);
+    if (!cancionRes.data.length) {
+      console.log("❌ No hay canciones disponibles en este álbum.");
+      return null;
+    }
+
+    const { cancionIndex } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "cancionIndex",
+        message: "🎶 Selecciona una canción:",
+        choices: cancionRes.data.map((c, index) => ({
+          name: `🎵 ${c.titulo} - ${c.artista || 'Artista desconocido'}`,
+          value: index,
+        })),
+        pageSize: 15,
+        loop: false
+      },
+    ]);
+
+    const cancionSeleccionada = cancionRes.data[cancionIndex];
+    console.log(`✅ Canción seleccionada: ${cancionSeleccionada.titulo}`);
+    return cancionSeleccionada;
+    
+  } catch (error) {
+    console.error("❌ Error al seleccionar canción:", error.message);
+    return null;
+  }
+}
+
+// Función para buscar canción por título
+async function buscarCancionPorTitulo() {
+  try {
+    const { busqueda } = await inquirer.prompt([
+      { 
+        type: "input", 
+        name: "busqueda", 
+        message: "🔍 Escribe parte del título de la canción que buscas:" 
+      },
+    ]);
+
+    if (!busqueda.trim()) {
+      console.log("❌ Debes escribir algo para buscar.");
+      return null;
+    }
+
+    console.log("\n🔍 Buscando canciones...");
+    
+    // Obtener todas las canciones y filtrar localmente
+    const res = await axios.get(`${API_URL}/canciones/estructura-completa`);
+    const todasLasCanciones = [];
+    
+    // Extraer todas las canciones de todos los géneros y álbumes
+    res.data.forEach(genero => {
+      if (genero.albumes) {
+        genero.albumes.forEach(album => {
+          if (album.canciones) {
+            album.canciones.forEach(cancion => {
+              todasLasCanciones.push({
+                ...cancion,
+                genero: genero.genero,
+                album: album.titulo
+              });
+            });
+          }
+        });
+      }
+    });
+
+    // Filtrar canciones que coincidan con la búsqueda
+    const cancionesFiltradas = todasLasCanciones.filter(cancion => 
+      cancion.titulo?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      cancion.artista?.toLowerCase().includes(busqueda.toLowerCase())
+    );
+
+    if (!cancionesFiltradas.length) {
+      console.log(`❌ No se encontraron canciones que contengan "${busqueda}".`);
+      return null;
+    }
+
+    console.log(`✅ Se encontraron ${cancionesFiltradas.length} canción(es):`);
+
+    const { cancionSeleccionada } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "cancionSeleccionada",
+        message: "🎶 Selecciona la canción que deseas agregar:",
+        choices: cancionesFiltradas.map((c, index) => ({
+          name: `🎵 ${c.titulo} - ${c.artista || 'Artista desconocido'} (${c.genero} - ${c.album})`,
+          value: c,
+        })),
+        pageSize: 15,
+        loop: false
+      },
+    ]);
+
+    console.log(`✅ Canción seleccionada: ${cancionSeleccionada.titulo}`);
+    return cancionSeleccionada;
+    
+  } catch (error) {
+    console.error("❌ Error al buscar canción:", error.message);
+    return null;
+  }
+}
+
+// Función para ingresar canción manualmente
+async function ingresarCancionManual() {
+  try {
+    console.log("\n✏️ Ingresando información manualmente...");
+    
+    const { titulo, artista, album } = await inquirer.prompt([
+      { type: "input", name: "titulo", message: "🎵 Título de la canción:" },
+      { type: "input", name: "artista", message: "👤 Artista:" },
+      { type: "input", name: "album", message: "💿 Álbum:" },
+    ]);
+
+    if (!titulo.trim()) {
+      console.log("❌ El título es obligatorio.");
+      return null;
+    }
+
+    const cancionData = { 
+      titulo: titulo.trim(), 
+      artista: artista.trim() || 'Artista desconocido', 
+      album: album.trim() || 'Álbum desconocido' 
+    };
+    
+    console.log(`✅ Canción creada: ${cancionData.titulo} - ${cancionData.artista}`);
+    return cancionData;
+    
+  } catch (error) {
+    console.error("❌ Error al ingresar canción:", error.message);
     return null;
   }
 }

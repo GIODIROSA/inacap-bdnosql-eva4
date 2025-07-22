@@ -30,7 +30,7 @@ class cancionesController {
     try {
       const { id } = req.params;
       const data = await cancionesModelo.delete(id);
-      res.status(206).json(data);
+      res.status(200).json(data);
     } catch (error) {
       console.error("Error al eliminar la canción:", error.message);
       res.status(500).send("Error interno del servidor");
