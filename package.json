@@ -2,19 +2,18 @@
   "name": "inacap-bdnosql-eva4",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "app.js",
   "type": "module",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "server": "nodemon -L",
+    "client": "node --no-warnings menu.js",
+    "dev": "npx concurrently --raw -k --names \"SERVER,CLIENT\" -c \"bgBlue.bold,bgGreen.bold\" \"npm:server\" \"npm:client\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.10.0",
-    "body-parser": "^2.2.0",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "inquirer": "^12.8.1",
@@ -22,6 +21,7 @@
     "mongoose": "^8.16.3"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "nodemon": "^3.1.10"
   }
 }
