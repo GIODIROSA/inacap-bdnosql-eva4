@@ -38,50 +38,84 @@ async function mainMenu() {
 }
 
 async function explorarGeneros() {
-  try {
-    const res = await axios.get(`${API_URL}/generos`);
-    if (!res.data.length) {
-      console.log("No hay géneros disponibles.");
-      return;
+  let continuar = true;
+  while (continuar) {
+    try {
+      const res = await axios.get(`${API_URL}/generos`);
+      if (!res.data.length) {
+        console.log("No hay géneros disponibles.");
+        return;
+      }
+      const choices = res.data.map((g) => ({
+        name: g.genero,
+        value: g._id,
+      }));
+      choices.push({ name: "🔙 Volver al menú principal", value: "volver" });
+      
+      const { generoId } = await inquirer.prompt([
+        {
+          type: "list",
+          name: "generoId",
+          message: "Selecciona un género:",
+          choices: choices,
+        },
+      ]);
+      
+      if (generoId === "volver") {
+        continuar = false;
+      } else {
+        const resultado = await explorarAlbumes(generoId);
+        if (resultado === "menu") {
+          continuar = false;
+        }
+        // Si no devuelve nada o devuelve otra cosa, continúa en el bucle
+      }
+    } catch (error) {
+      console.error("Error al obtener géneros:", error.message);
+      continuar = false;
     }
-    const { generoId } = await inquirer.prompt([
-      {
-        type: "list",
-        name: "generoId",
-        message: "Selecciona un género:",
-        choices: res.data.map((g) => ({
-          name: g.genero,
-          value: g._id,
-        })),
-      },
-    ]);
-    await explorarAlbumes(generoId);
-  } catch (error) {
-    console.error("Error al obtener géneros:", error.message);
   }
 }
 
 async function explorarAlbumes(generoId) {
-  try {
-    const res = await axios.get(`${API_URL}/albumes/genero/${generoId}`);
-    if (!res.data.length) {
-      console.log("No hay álbumes para este género.");
-      return;
+  let continuar = true;
+  while (continuar) {
+    try {
+      const res = await axios.get(`${API_URL}/albumes/genero/${generoId}`);
+      if (!res.data.length) {
+        console.log("No hay álbumes para este género.");
+        return;
+      }
+      const choices = res.data.map((a) => ({
+        name: a.titulo,
+        value: a._id,
+      }));
+      choices.push({ name: "🔙 Volver a géneros", value: "volver" });
+      
+      const { albumId } = await inquirer.prompt([
+        {
+          type: "list",
+          name: "albumId",
+          message: "Selecciona un álbum:",
+          choices: choices,
+        },
+      ]);
+      
+      if (albumId === "volver") {
+        continuar = false;
+      } else {
+        const accion = await mostrarCanciones(albumId);
+        if (accion === "generos") {
+          continuar = false;
+        } else if (accion === "menu") {
+          return "menu";
+        }
+        // Si es "volver", continúa en el bucle de álbumes
+      }
+    } catch (error) {
+      console.error("Error al obtener álbumes:", error.message);
+      continuar = false;
     }
-    const { albumId } = await inquirer.prompt([
-      {
-        type: "list",
-        name: "albumId",
-        message: "Selecciona un álbum:",
-        choices: res.data.map((a) => ({
-          name: a.titulo,
-          value: a._id,
-        })),
-      },
-    ]);
-    await mostrarCanciones(albumId);
-  } catch (error) {
-    console.error("Error al obtener álbumes:", error.message);
   }
 }
 
@@ -96,13 +130,21 @@ async function mostrarCanciones(albumId) {
     res.data.forEach((c, idx) => {
       console.log(`- ${idx + 1}. ${c.titulo || JSON.stringify(c)}`);
     });
-    await inquirer.prompt([
+    
+    const { accion } = await inquirer.prompt([
       {
-        type: "input",
-        name: "continuar",
-        message: "Presiona ENTER para volver al menú principal",
+        type: "list",
+        name: "accion",
+        message: "¿Qué quieres hacer?",
+        choices: [
+          { name: "🔙 Volver a álbumes", value: "volver" },
+          { name: "🔙 Volver a géneros", value: "generos" },
+          { name: "🏠 Volver al menú principal", value: "menu" }
+        ],
       },
     ]);
+    
+    return accion;
   } catch (error) {
     console.error("Error al obtener canciones:", error.message);
   }
@@ -222,11 +264,17 @@ async function agregarCancionAPlaylist() {
           "📁 Navegar por géneros y álbumes",
           "🔍 Buscar canción por título",
           "✏️ Escribir información manualmente",
+          "🔙 Cancelar",
         ],
         pageSize: 5,
         loop: false
       },
     ]);
+
+    if (metodo === "🔙 Cancelar") {
+      console.log("Operación cancelada.");
+      return;
+    }
 
     let cancionData;
     
@@ -333,20 +381,25 @@ async function seleccionarPlaylist(message) {
       console.log("❌ No hay playlists disponibles.");
       return null;
     }
+    
+    const choices = res.data.map((pl) => ({ 
+      name: `🎵 ${pl.nombre} (${pl.canciones?.length || 0} canciones)`, 
+      value: pl._id 
+    }));
+    choices.push({ name: "🔙 Cancelar", value: "cancelar" });
+    
     const { playlistId } = await inquirer.prompt([
       {
         type: "list",
         name: "playlistId",
         message: message,
-        choices: res.data.map((pl) => ({ 
-          name: `🎵 ${pl.nombre} (${pl.canciones?.length || 0} canciones)`, 
-          value: pl._id 
-        })),
+        choices: choices,
         pageSize: 10,
         loop: false
       },
     ]);
-    return playlistId;
+    
+    return playlistId === "cancelar" ? null : playlistId;
   } catch (error) {
     console.error("Error al obtener las playlists:", error.message);
     return null;
@@ -365,19 +418,24 @@ async function seleccionarCancionPorNavegacion() {
       return null;
     }
 
+    const generoChoices = res.data.map((g) => ({
+      name: `🎵 ${g.genero}`,
+      value: g._id,
+    }));
+    generoChoices.push({ name: "🔙 Cancelar", value: "cancelar" });
+
     const { generoId } = await inquirer.prompt([
       {
         type: "list",
         name: "generoId",
         message: "🎭 Selecciona un género:",
-        choices: res.data.map((g) => ({
-          name: `🎵 ${g.genero}`,
-          value: g._id,
-        })),
+        choices: generoChoices,
         pageSize: 10,
         loop: false
       },
     ]);
+
+    if (generoId === "cancelar") return null;
 
     console.log("\n💿 Seleccionando álbum...");
     
@@ -388,19 +446,26 @@ async function seleccionarCancionPorNavegacion() {
       return null;
     }
 
+    const albumChoices = albumRes.data.map((a) => ({
+      name: `💿 ${a.titulo} (${a.canciones?.length || 0} canciones)`,
+      value: a._id,
+    }));
+    albumChoices.push({ name: "🔙 Volver a géneros", value: "volver" });
+    albumChoices.push({ name: "🔙 Cancelar", value: "cancelar" });
+
     const { albumId } = await inquirer.prompt([
       {
         type: "list",
         name: "albumId",
         message: "💿 Selecciona un álbum:",
-        choices: albumRes.data.map((a) => ({
-          name: `💿 ${a.titulo} (${a.canciones?.length || 0} canciones)`,
-          value: a._id,
-        })),
+        choices: albumChoices,
         pageSize: 10,
         loop: false
       },
     ]);
+
+    if (albumId === "cancelar") return null;
+    if (albumId === "volver") return await seleccionarCancionPorNavegacion(); // Reiniciar desde géneros
 
     console.log("\n🎶 Seleccionando canción...");
     
@@ -411,19 +476,99 @@ async function seleccionarCancionPorNavegacion() {
       return null;
     }
 
+    const cancionChoices = cancionRes.data.map((c, index) => ({
+      name: `🎵 ${c.titulo} - ${c.artista || 'Artista desconocido'}`,
+      value: index,
+    }));
+    cancionChoices.push({ name: "🔙 Volver a álbumes", value: "volver" });
+    cancionChoices.push({ name: "🔙 Cancelar", value: "cancelar" });
+
     const { cancionIndex } = await inquirer.prompt([
       {
         type: "list",
         name: "cancionIndex",
         message: "🎶 Selecciona una canción:",
-        choices: cancionRes.data.map((c, index) => ({
-          name: `🎵 ${c.titulo} - ${c.artista || 'Artista desconocido'}`,
-          value: index,
-        })),
+        choices: cancionChoices,
         pageSize: 15,
         loop: false
       },
     ]);
+
+    if (cancionIndex === "cancelar") return null;
+    if (cancionIndex === "volver") {
+      // Volver a seleccionar álbum (mantener el género seleccionado)
+      console.log("\n💿 Seleccionando álbum...");
+      return await seleccionarCancionEnAlbum(generoId);
+    }
+
+    const cancionSeleccionada = cancionRes.data[cancionIndex];
+    console.log(`✅ Canción seleccionada: ${cancionSeleccionada.titulo}`);
+    return cancionSeleccionada;
+    
+  } catch (error) {
+    console.error("❌ Error al seleccionar canción:", error.message);
+    return null;
+  }
+}
+
+// Función auxiliar para seleccionar canción en álbum (cuando se vuelve desde canciones)
+async function seleccionarCancionEnAlbum(generoId) {
+  try {
+    const albumRes = await axios.get(`${API_URL}/albumes/genero/${generoId}`);
+    if (!albumRes.data.length) {
+      console.log("❌ No hay álbumes disponibles para este género.");
+      return null;
+    }
+
+    const albumChoices = albumRes.data.map((a) => ({
+      name: `💿 ${a.titulo} (${a.canciones?.length || 0} canciones)`,
+      value: a._id,
+    }));
+    albumChoices.push({ name: "🔙 Volver a géneros", value: "volver" });
+    albumChoices.push({ name: "🔙 Cancelar", value: "cancelar" });
+
+    const { albumId } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "albumId",
+        message: "💿 Selecciona un álbum:",
+        choices: albumChoices,
+        pageSize: 10,
+        loop: false
+      },
+    ]);
+
+    if (albumId === "cancelar") return null;
+    if (albumId === "volver") return await seleccionarCancionPorNavegacion();
+
+    console.log("\n🎶 Seleccionando canción...");
+    
+    const cancionRes = await axios.get(`${API_URL}/canciones/album/${albumId}`);
+    if (!cancionRes.data.length) {
+      console.log("❌ No hay canciones disponibles en este álbum.");
+      return null;
+    }
+
+    const cancionChoices = cancionRes.data.map((c, index) => ({
+      name: `🎵 ${c.titulo} - ${c.artista || 'Artista desconocido'}`,
+      value: index,
+    }));
+    cancionChoices.push({ name: "🔙 Volver a álbumes", value: "volver" });
+    cancionChoices.push({ name: "🔙 Cancelar", value: "cancelar" });
+
+    const { cancionIndex } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "cancionIndex",
+        message: "🎶 Selecciona una canción:",
+        choices: cancionChoices,
+        pageSize: 15,
+        loop: false
+      },
+    ]);
+
+    if (cancionIndex === "cancelar") return null;
+    if (cancionIndex === "volver") return await seleccionarCancionEnAlbum(generoId);
 
     const cancionSeleccionada = cancionRes.data[cancionIndex];
     console.log(`✅ Canción seleccionada: ${cancionSeleccionada.titulo}`);
@@ -442,12 +587,12 @@ async function buscarCancionPorTitulo() {
       { 
         type: "input", 
         name: "busqueda", 
-        message: "🔍 Escribe parte del título de la canción que buscas:" 
+        message: "🔍 Escribe parte del título de la canción que buscas (o deja vacío para cancelar):" 
       },
     ]);
 
     if (!busqueda.trim()) {
-      console.log("❌ Debes escribir algo para buscar.");
+      console.log("🔙 Búsqueda cancelada.");
       return null;
     }
 
@@ -482,24 +627,44 @@ async function buscarCancionPorTitulo() {
 
     if (!cancionesFiltradas.length) {
       console.log(`❌ No se encontraron canciones que contengan "${busqueda}".`);
+      
+      const { intentarDeNuevo } = await inquirer.prompt([
+        {
+          type: "confirm",
+          name: "intentarDeNuevo",
+          message: "¿Quieres intentar con otra búsqueda?",
+          default: true
+        }
+      ]);
+      
+      if (intentarDeNuevo) {
+        return await buscarCancionPorTitulo();
+      }
       return null;
     }
 
     console.log(`✅ Se encontraron ${cancionesFiltradas.length} canción(es):`);
+
+    const choices = cancionesFiltradas.map((c, index) => ({
+      name: `🎵 ${c.titulo} - ${c.artista || 'Artista desconocido'} (${c.genero} - ${c.album})`,
+      value: c,
+    }));
+    choices.push({ name: "🔙 Buscar otra canción", value: "buscar_otra" });
+    choices.push({ name: "🔙 Cancelar", value: "cancelar" });
 
     const { cancionSeleccionada } = await inquirer.prompt([
       {
         type: "list",
         name: "cancionSeleccionada",
         message: "🎶 Selecciona la canción que deseas agregar:",
-        choices: cancionesFiltradas.map((c, index) => ({
-          name: `🎵 ${c.titulo} - ${c.artista || 'Artista desconocido'} (${c.genero} - ${c.album})`,
-          value: c,
-        })),
+        choices: choices,
         pageSize: 15,
         loop: false
       },
     ]);
+
+    if (cancionSeleccionada === "cancelar") return null;
+    if (cancionSeleccionada === "buscar_otra") return await buscarCancionPorTitulo();
 
     console.log(`✅ Canción seleccionada: ${cancionSeleccionada.titulo}`);
     return cancionSeleccionada;
@@ -515,14 +680,50 @@ async function ingresarCancionManual() {
   try {
     console.log("\n✏️ Ingresando información manualmente...");
     
-    const { titulo, artista, album } = await inquirer.prompt([
-      { type: "input", name: "titulo", message: "🎵 Título de la canción:" },
-      { type: "input", name: "artista", message: "👤 Artista:" },
-      { type: "input", name: "album", message: "💿 Álbum:" },
+    const { titulo, artista, album, confirmar } = await inquirer.prompt([
+      { 
+        type: "input", 
+        name: "titulo", 
+        message: "🎵 Título de la canción (obligatorio):" 
+      },
+      { 
+        type: "input", 
+        name: "artista", 
+        message: "👤 Artista (opcional):" 
+      },
+      { 
+        type: "input", 
+        name: "album", 
+        message: "💿 Álbum (opcional):" 
+      },
+      {
+        type: "confirm",
+        name: "confirmar",
+        message: "¿Confirmas que quieres agregar esta canción?",
+        default: true
+      }
     ]);
+
+    if (!confirmar) {
+      console.log("🔙 Operación cancelada.");
+      return null;
+    }
 
     if (!titulo.trim()) {
       console.log("❌ El título es obligatorio.");
+      
+      const { intentarDeNuevo } = await inquirer.prompt([
+        {
+          type: "confirm",
+          name: "intentarDeNuevo",
+          message: "¿Quieres intentar de nuevo?",
+          default: true
+        }
+      ]);
+      
+      if (intentarDeNuevo) {
+        return await ingresarCancionManual();
+      }
       return null;
     }
 
