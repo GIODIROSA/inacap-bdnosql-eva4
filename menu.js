@@ -1,41 +1,68 @@
-import "dotenv/config";
-import inquirer from "inquirer";
-import axios from "axios";
+// ===============================================
+// INTERFAZ CLI - FRONTEND INTERACTIVO VINYLROAR
+// ===============================================
 
-const url = process.env.URL_INICIAL;
-const API_URL = url;
+// Configuración de variables de entorno
+import "dotenv/config"; // Carga las variables del archivo .env
 
+// Importaciones para la interfaz de usuario
+import inquirer from "inquirer"; // Biblioteca para crear interfaces CLI interactivas
+import axios from "axios"; // Cliente HTTP para comunicarse con la API
+
+// Configuración de la URL base de la API
+const url = process.env.URL_INICIAL; // URL desde las variables de entorno
+const API_URL = url; // URL base para todas las peticiones a la API
+
+/**
+ * Función principal del menú - Punto de entrada de la aplicación CLI
+ * Presenta las opciones principales y maneja la navegación del usuario
+ * Bucle principal que se ejecuta hasta que el usuario decida salir
+ */
 async function mainMenu() {
-  let salir = false;
+  let salir = false; // Flag para controlar el bucle principal
+  
   while (!salir) {
-    // Limpiar pantalla antes de mostrar el menú
+    // Limpiar pantalla antes de mostrar el menú para mejor UX
     console.clear();
     console.log("\n--- Menú Principal ---");
+    
+    // Presentar opciones principales al usuario
     const { opcion } = await inquirer.prompt([
       {
-        type: "list",
-        name: "opcion",
+        type: "list", // Tipo de input: lista de opciones
+        name: "opcion", // Nombre de la variable que recibirá la respuesta
         message: "¿Qué deseas hacer?",
         choices: ["Explorar música", "Gestionar playlists", "Salir"],
-        pageSize: 10,
-        loop: false
+        pageSize: 10, // Número máximo de opciones visibles
+        loop: false   // Desactivar navegación circular
       },
     ]);
 
+    // Manejar la opción seleccionada por el usuario
     switch (opcion) {
       case "Explorar música":
-        await explorarGeneros();
+        await explorarGeneros(); // Navegar por géneros → álbumes → canciones
         break;
       case "Gestionar playlists":
-        await gestionarPlaylists();
+        await gestionarPlaylists(); // Crear, editar, eliminar playlists
         break;
       case "Salir":
-        salir = true;
+        salir = true; // Cambiar flag para terminar el bucle principal
         break;
     }
   }
-  console.log("¡Hasta luego!");
+  console.log("¡Hasta luego!"); // Mensaje de despedida al salir
 }
+
+// ===============================================
+// FUNCIONES DE NAVEGACIÓN MUSICAL
+// ===============================================
+
+/**
+ * Explora géneros musicales disponibles con navegación jerárquica
+ * Primer nivel de navegación: Géneros → Álbumes → Canciones
+ * Incluye opciones de retorno para mejor experiencia de usuario
+ */
 
 async function explorarGeneros() {
   let continuar = true;
